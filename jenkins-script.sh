@@ -96,8 +96,7 @@ fi
 #git clone https://github.com/svarvel/browser-android-tabs.git src
 if [ -d $android_path"/src" ] 
 then
-    cd $android_path"/src"
-    mkdir -p $out_folder
+    cd $android_path"/src"    
     if [ -f $out_folder"/args.gn" ] 
     then
         echo "Avoid running getThirdParties. Resorting to configuration in $out_folder/args.gn"
