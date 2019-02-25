@@ -8,20 +8,21 @@ WORKSPACE=$HOME"/jenkins/workspace"                     # current workspace
 android_path=$WORKSPACE"/brave-browser-build-android"   # android brave workspace 
 last_yarn_vrs="1.13.0"                                  # last version of yarn 
 
-# testing parametrization on Jenkins
-COMPILE="FALSE"
-ARCH="ARM"
-#echo "----> ARCH: $ARCH"
-#exit 0 
+# Jenkins parametrization
+#COMPILE="false"
+#ARCH="ARM"
+#FULL="true"
 
 # switch out folder based on architecture 
 case $ARCH in
     "ARM")
         out_folder="out/DefaultR"
+        gn_file="debug-arm.gn"
         ;;
     
     "X86")
         out_folder="out/Defaultx86"
+        gn_file="debug-x86.gn"
         ;;
     
     *)
@@ -44,22 +45,13 @@ else
     git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
 fi 
 
-# update path if needed 
+# make sure depot_tools is in PATH
 curr_path=`pwd`
 depot_tools_path=$curr_path"/depot_tools"
-hash ninja > /dev/null 2>&1
-if [ $? -eq 1 ]
-then 
-    echo "Updating PATH with $depot_tools_path..."
-    echo "export PATH=\$PATH:"$depot_tools_path >> ~/.bashrc 
-    source ~/.bashrc
-else 
-    echo "PATH already contains $depot_tools_path"
-fi 
+export PATH=$PATH:"$depot_tools_path"
 
 # install nodejs, if needed 
 # FIXME -- not sure which version is "enough"
-to_install="False"
 hash nodejs > /dev/null 2>&1 
 if [ $? -eq 1 ] 
 then 
@@ -68,19 +60,19 @@ then
 fi 
 
 # install yarn, if needed 
-to_install="False"
+to_install="false"
 hash yarn > /dev/null 2>&1 
 if [ $? -eq 1 ] 
 then 
-    to_install="True"
+    to_install="true"
 else 
     yarn_vrs=`yarn --version`
     if [ $yarn_vrs != $last_yarn_vrs ] 
     then 
-        to_install="True"
+        to_install="true"
     fi  
 fi 
-if [ $to_install == "True" ] 
+if [ $to_install == "true" ] 
 then 
     echo "Installing yarn vrs $last_yarn_vrs..."
     curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | sudo apt-key add -
@@ -91,12 +83,11 @@ else
 fi 
 
 # pull third parties -- if needed 
-# FIXME -- add variable to enable configuration change (e.g., arm vs x86, debug vs release) 
-# tmp, jenkins can do it for us 
-#git clone https://github.com/svarvel/browser-android-tabs.git src
+# git clone https://github.com/svarvel/browser-android-tabs.git src
 if [ -d $android_path"/src" ] 
 then
-    cd $android_path"/src"    
+    cd $android_path"/src"
+    mkdir -p $out_folder
     if [ -f $out_folder"/args.gn" ] 
     then
         echo "Avoid running getThirdParties. Resorting to configuration in $out_folder/args.gn"
@@ -114,8 +105,9 @@ then
         cp test-scripts/getThirdParties.sh ./scripts
         
         start_time=`date +%s`
-        echo "Running getThirdParties.sh -- debug-arm configuration"
-        sh scripts/getThirdParties.sh test-scripts/debug-arm.gn $out_folder
+        echo "Running getThirdParties.sh"
+        echo "sh scripts/getThirdParties.sh test-scripts/$gn_file $out_folder $FULL"
+        sh scripts/getThirdParties.sh test-scripts/$gn_file $out_folder $FULL
         curr_time=`date +%s`
         let "time_passed = curr_time - start_time"
         echo "[getThirdParties.sh] Duration: $time_passed"
@@ -127,7 +119,7 @@ else
 fi 
 
 # compile or not 
-if [ $COMPILE == "True" ] 
+if [ $COMPILE == "true" ] 
 then 
     start_time=`date +%s`
     echo "Compiling..." 
